@@ -204,7 +204,7 @@ cal_peak_in = 219997.578
 for i in range(0, H_steps):
     Meas_Function.measurement.positioner_move(x_pos, y_start)
     for j in range(0, V_steps):
-        print(index)
+        print(index, "out of", H_steps * V_steps)
 
         #-------------------------------------------------------------
         TomoData_fitted = open('Tomography_data_fitted.txt', 'a+')
