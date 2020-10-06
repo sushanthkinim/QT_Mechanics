@@ -12,7 +12,7 @@ chipname = "testcipname"#"DL_v2_C5"
 sample = "testsample"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
 
 current_dir = "E:\Measurement\Double_Layer_Devices"
-data_path = str(today) + ' ' + chipname + ' ' + sample + ' ' + 'Data'
+data_path = str(today) + '-' + chipname + '-' + sample + '-' + 'Data'
 
 # -----------------Geometry of the device-----------------------
 L_pad = 90E6
