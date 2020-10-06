@@ -1,4 +1,4 @@
-import Meas_Function
+#import Meas_Function
 import matplotlib.pyplot as plt
 from datetime import date
 import os
@@ -8,8 +8,8 @@ import itertools
 
 
 today = date.today()
-chipname = "DL_v2_C5"
-sample = "Circ_Matrix_2x4_Dev_1x3_1580nm"
+chipname = "testcipname"#"DL_v2_C5"
+sample = "testsample"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
 
 current_dir = "E:\Measurement\Double_Layer_Devices"
 data_path = str(today) + ' ' + chipname + ' ' + sample + ' ' + 'Data'
@@ -60,6 +60,7 @@ y_start = int(float(input()) * float(1E6))
 
 # ------------------------ Get the three points ---------------------------------------
 
+"""
 # Enter co-ordinates for Point 1
 print("Enter x co-ordinate for Point 1: ")
 x_target1 = int(float(input()) * float(1E6))
@@ -77,6 +78,31 @@ print("Enter x co-ordinate for Point 3: ")
 x_target3 = int(float(input()) * float(1E6))
 print("Enter y co-ordinate for Point 3: ")
 y_target3 = int(float(input()) * float(1E6))
+"""
+
+# Put this somewhere else, where it belongs
+def get_points(xmin, xmax, ymin, ymax, isCircular=False):
+
+    fig, ax = plt.subplots()
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    
+    if isCircular:
+        t = np.linspace(0, 2*np.pi)
+        r = (xmin - xmax) / 2
+        c_x, c_y = (xmin + xmax) / 2, (ymin + ymax) / 2
+        x = c_x + r*np.cos(t)
+        y = c_y + r*np.sin(t)
+        ax.plot(x,y)
+
+    print("Click on the plot three times. Right-click removes last point.")
+    points = fig.ginput(3)
+    return points
+
+[(x_target1, y_target1), (x_target2, y_target2), (x_target3, y_target3)] = get_points(x_start, x_start+W_pad, y_start, y_start+L_pad, isCircular=True)
+print([(x_target1, y_target1), (x_target2, y_target2), (x_target3, y_target3)])
+
+breakpoint()
 
 # ---------------------------Get peak list for point 1----------------------------------
 # List of peaks from point 2
@@ -101,12 +127,13 @@ print(peaks_list_together)
 # Remove duplicates from the list using window criteria
 final_peak_list = []  # Define the list for the final peak list
 val_old = peaks_list_together[0]  # Define holder for the previous value
-final_peak_list.append(peaks_list_together[0])
+penultimate_peak_list.append(peaks_list_together[0])
 for i in peaks_list_together:
     if (float(str(i)) - float(val_old)) > 1.5E3:
-        final_peak_list.append(i)
+        penultimate_peak_list.append(i)
     val_old = float(i)
-print(final_peak_list)
+print(penultimate_peak_list)
+final_peak_list
 
 
 
