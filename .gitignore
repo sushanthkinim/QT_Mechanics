@@ -2,3 +2,5 @@
 .idea
 # Ignore __pycache__ folder
 __pycache__
+# Ignore swap files
+*.swp
