@@ -1,4 +1,4 @@
-#import Meas_Function
+import Meas_Function
 import matplotlib.pyplot as plt
 from datetime import date
 import os
@@ -51,6 +51,52 @@ calpeak_span = 500
 # 7. Merge all the lists for every point & have a criteria to remove peaks that have shifted due to position dependence
 # --------------------------------------------------------------------------------------
 
+# Graphical point picker, picks three points
+def get_points(xmin, xmax, ymin, ymax, showGuide=True):
+
+    fig, ax = plt.subplots()
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.axis('equal')
+    
+    if showGuide:
+        t = np.linspace(0, 2*np.pi)
+        r = (xmin - xmax) / 2
+        c_x, c_y = (xmin + xmax) / 2, (ymin + ymax) / 2
+        x = c_x + r*np.cos(t)
+        y = c_y + r*np.sin(t)
+        ax.plot(x,y,"--k")
+
+    print("Click on the plot three times. Right-click removes last point.")
+    points = fig.ginput(3)
+    plt.close()
+    points = [(int(x), int(y)) for (x,y) in points]
+    return points
+
+def frequency_chooser(freqs):
+    # Print selection dialog
+    print(" ====== select frequencies ======")
+    for i in range(len(freqs)):
+        print(f"{i:2d}: {float(freqs[i])/1000:.1f} kHz")
+    print("Which frequencies doyou want to measure?")
+    # Get input
+    indices = input("Enter a list of integers, separated by commas: ")
+    # Validate input, get new if invalid
+    done = False
+    while not done:
+        try:
+            str_array = indices.split(",")
+            ind_array = [int(str_index) for str_index in str_array]
+            filtered_freqs = [freqs[ind] for ind in ind_array]
+        except (ValueError, IndexError):
+            indices = input("Invalid, try again: ")
+        else:
+            done = True
+
+    return filtered_freqs
+
+
+
 # ------------------------- Get the starting position of the tomography ---------------
 
 print("Enter start position x co-ordinate: ")
@@ -60,49 +106,9 @@ y_start = int(float(input()) * float(1E6))
 
 # ------------------------ Get the three points ---------------------------------------
 
-"""
-# Enter co-ordinates for Point 1
-print("Enter x co-ordinate for Point 1: ")
-x_target1 = int(float(input()) * float(1E6))
-print("EEnter y co-ordinate for Point 1: ")
-y_target1 = int(float(input()) * float(1E6))
 
-# Enter co-ordinates for Point 2
-print("Enter x co-ordinate for Point 2: ")
-x_target2 = int(float(input()) * float(1E6))
-print("Enter y co-ordinate for Point 2: ")
-y_target2 = int(float(input()) * float(1E6))
-
-# Enter co-ordinates for Point 1
-print("Enter x co-ordinate for Point 3: ")
-x_target3 = int(float(input()) * float(1E6))
-print("Enter y co-ordinate for Point 3: ")
-y_target3 = int(float(input()) * float(1E6))
-"""
-
-# Put this somewhere else, where it belongs
-def get_points(xmin, xmax, ymin, ymax, isCircular=False):
-
-    fig, ax = plt.subplots()
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
-    
-    if isCircular:
-        t = np.linspace(0, 2*np.pi)
-        r = (xmin - xmax) / 2
-        c_x, c_y = (xmin + xmax) / 2, (ymin + ymax) / 2
-        x = c_x + r*np.cos(t)
-        y = c_y + r*np.sin(t)
-        ax.plot(x,y)
-
-    print("Click on the plot three times. Right-click removes last point.")
-    points = fig.ginput(3)
-    return points
-
-[(x_target1, y_target1), (x_target2, y_target2), (x_target3, y_target3)] = get_points(x_start, x_start+W_pad, y_start, y_start+L_pad, isCircular=True)
+[(x_target1, y_target1), (x_target2, y_target2), (x_target3, y_target3)] = get_points(x_start, x_start+W_pad, y_start, y_start+L_pad, showGuide=True)
 print([(x_target1, y_target1), (x_target2, y_target2), (x_target3, y_target3)])
-
-breakpoint()
 
 # ---------------------------Get peak list for point 1----------------------------------
 # List of peaks from point 2
@@ -123,18 +129,16 @@ print(peak_list3)
 peaks_list_together = peak_list1 + peak_list2 + peak_list3
 # Sort the points
 peaks_list_together.sort(key=float)
-print(peaks_list_together)
 # Remove duplicates from the list using window criteria
-final_peak_list = []  # Define the list for the final peak list
+penultimate_peak_list = []  # Define the list for the penultimate peak list
 val_old = peaks_list_together[0]  # Define holder for the previous value
 penultimate_peak_list.append(peaks_list_together[0])
 for i in peaks_list_together:
     if (float(str(i)) - float(val_old)) > 1.5E3:
         penultimate_peak_list.append(i)
     val_old = float(i)
-print(penultimate_peak_list)
-final_peak_list
 
+final_peak_list = frequency_chooser(penultimate_peak_list)
 
 
 # ---------------------------------------------------------------------------------------------------------
