@@ -510,7 +510,7 @@ def plot_the_NPS(traces, startFreq, stopFreq, final_list):
         for j in range(len(final_list)):
             x = final_list[j]
             ind = round((x - startFreq) / (stopFreq - startFreq) * n)
-            y = traces[i][ind]
+            y = np.max(traces[i][ind-1:ind+2])
             #ax.axvline(x=x, color='k', linestyle='--')
             axs[i].annotate(str(j), xy=(x, y), xytext=(-5, 8), textcoords='offset points',
                 rotation=0, va='bottom', ha='center', annotation_clip=False, arrowprops=arrowprops)

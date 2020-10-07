@@ -11,11 +11,13 @@ import Meas_Function
 
 today = date.today()
 chipname = "testcipname"#"DL_v2_C5"
-sample = "testsample"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
+sample = "testsample3"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
 
 current_dir = "E:\Measurement\Double_Layer_Devices"
 data_path = str(today) + '-' + chipname + '-' + sample + '-' + 'Data'
 
+os.chdir(current_dir)
+os.mkdir(data_path)
 # -----------------Geometry of the device-----------------------
 L_pad = 90E6
 W_pad = 90E6
@@ -119,8 +121,6 @@ plt.close()
 # ---------------------------------------------------------------------------------------------------------
 
 # ----------------Write peaklists from all the points and sorted peaks to a txt file-----------------------
-os.chdir(current_dir)
-os.mkdir(data_path)
 os.chdir(data_path)
 peaklist_together = open('PeakLists_New.txt','w')
 peaklist_together.write(str(peak_list1))
