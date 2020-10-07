@@ -255,34 +255,6 @@ class measurement:
         except Exception as e:
                     print(e)
 
-    def plot_the_NPS(trace1,trace2,trace3, startFreq, stopFreq, final_list):
-        try :
-            xaxis = np.linspace(startFreq, stopFreq, len(trace1))
-            tracemin = min(trace1)
-            tracemax = max(trace1)
-            ystem = [-20] * len(final_list)
-
-            fig,axs = plt.subplots(3)
-
-            axs[0].stem(final_list, ystem, bottom=tracemin, linefmt='r:', markerfmt='D')
-            axs[0].plot(xaxis, trace1, color='blue')
-            axs[0].set(xlabel='Frequency', ylabel='NPS at point 1')
-
-            axs[1].stem(final_list, ystem, bottom=tracemin, linefmt='r:', markerfmt='D')
-            axs[1].plot(xaxis, trace2, color='blue')
-            axs[1].set(xlabel='Frequency', ylabel='NPS at point 2')
-
-            axs[2].stem(final_list, ystem, bottom=tracemin, linefmt='r:', markerfmt='D')
-            axs[2].plot(xaxis, trace3, color='blue')
-            axs[2].set(xlabel='Frequency', ylabel='NPS at point 3')
-
-            plt.savefig('NPS_ThreePoints.pdf', format='pdf', dpi=300)
-
-            return fig
-
-            plt.tight_layout()
-        except Exception as e:
-                    print(e)
 
     def Extract(list_in,rows,index):
         data_return = []
@@ -478,6 +450,80 @@ class measurement:
         except Exception as e:
             print(e)
 
+
+# Graphical point picker, picks three points
+def get_points(xmin, xmax, ymin, ymax, showGuide=True):
+
+    fig, ax = plt.subplots()
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.axis('equal')
+    
+    if showGuide:
+        t = np.linspace(0, 2*np.pi)
+        r = (xmin - xmax) / 2
+        c_x, c_y = (xmin + xmax) / 2, (ymin + ymax) / 2
+        x = c_x + r*np.cos(t)
+        y = c_y + r*np.sin(t)
+        ax.plot(x,y,"--k")
+
+    print("Click on the plot three times. Right-click removes last point.")
+    points = fig.ginput(3)
+    plt.close()
+    points = [(int(x), int(y)) for (x,y) in points]
+    return points
+
+def frequency_chooser(freqs):
+    # Print selection dialog
+    print(" ====== select frequencies ======")
+    for i in range(len(freqs)):
+        print(f"{i:2d}: {float(freqs[i])/1000:.1f} kHz")
+    print("Which frequencies do you want to measure?")
+    # Get input
+    indices = input("Enter a list of integers, separated by commas: ")
+    # Validate input, get new if invalid
+    done = False
+    while not done:
+        try:
+            str_array = indices.split(",")
+            ind_array = [int(str_index) for str_index in str_array]
+            filtered_freqs = [freqs[ind] for ind in ind_array]
+        except (ValueError, IndexError):
+            indices = input("Invalid, try again: ")
+        else:
+            done = True
+
+    return filtered_freqs
+
+
+def plot_the_NPS(trace1,trace2,trace3, startFreq, stopFreq, final_list):
+    traces = [trace1, trace2, trace3]
+    xaxis = np.linspace(startFreq, stopFreq, len(trace1))
+    tracemin = min(trace1)
+    tracemax = max(trace1)
+    ystem = [-20] * len(final_list)
+
+    fig,axs = plt.subplots(3,1,sharex=True)
+
+
+    arrowprops = {'width': 1, 'headwidth': 1, 'headlength': 1, 'shrink':0.05 }
+    for i in range(len(axs)):
+        axs[i].plot(xaxis, traces[i], color='blue')
+        axs[i].set(xlabel='Frequency', ylabel=f'NPS at point {i}')
+        for j in range(len(final_list)):
+            x = final_list[j]
+            ind = np.where(xaxis == x)[0][0]
+            y = traces[i][ind]
+            #ax.axvline(x=x, color='k', linestyle='--')
+            axs[i].annotate(str(i), xy=(x, y), xytext=(-5, 8), textcoords='offset points',
+                rotation=0, va='bottom', ha='center', annotation_clip=False, arrowprops=arrowprops)
+
+
+    plt.savefig('NPS_ThreePoints.pdf', format='pdf', dpi=300)
+
+    return fig
+
+    plt.tight_layout()
 
 
 
