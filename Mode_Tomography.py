@@ -106,7 +106,8 @@ for i in peaks_list_num:
         penultimate_peak_list.append(i)
     val_old = float(i)
 
-fig = Meas_Function.plot_the_NPS(trace1_list_num, trace2_list_num, trace3_list_num, startFreq, stopFreq, penultimate_peak_list)
+fig = Meas_Function.plot_the_NPS([trace1_list_num, trace2_list_num, trace3_list_num],
+                                 startFreq, stopFreq, penultimate_peak_list)
 
 plt.show(block=False)
 plt.pause(1)

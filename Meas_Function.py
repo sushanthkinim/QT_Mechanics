@@ -496,14 +496,11 @@ def frequency_chooser(freqs):
     return filtered_freqs
 
 
-def plot_the_NPS(trace1,trace2,trace3, startFreq, stopFreq, final_list):
-    traces = [trace1, trace2, trace3]
-    xaxis = np.linspace(startFreq, stopFreq, len(trace1))
-    tracemin = min(trace1)
-    tracemax = max(trace1)
-    ystem = [-20] * len(final_list)
+def plot_the_NPS(traces, startFreq, stopFreq, final_list):
+    n = len(traces[0])
+    xaxis = np.linspace(startFreq, stopFreq, n)
 
-    fig,axs = plt.subplots(3,1,sharex=True)
+    fig, axs = plt.subplots(3,1,sharex=True)
 
 
     arrowprops = {'width': 1, 'headwidth': 1, 'headlength': 1, 'shrink':0.05 }
@@ -512,10 +509,10 @@ def plot_the_NPS(trace1,trace2,trace3, startFreq, stopFreq, final_list):
         axs[i].set(xlabel='Frequency', ylabel=f'NPS at point {i}')
         for j in range(len(final_list)):
             x = final_list[j]
-            ind = np.where(xaxis == x)[0][0]
+            ind = round((x - startFreq) / (stopFreq - startFreq) * n)
             y = traces[i][ind]
             #ax.axvline(x=x, color='k', linestyle='--')
-            axs[i].annotate(str(i), xy=(x, y), xytext=(-5, 8), textcoords='offset points',
+            axs[i].annotate(str(j), xy=(x, y), xytext=(-5, 8), textcoords='offset points',
                 rotation=0, va='bottom', ha='center', annotation_clip=False, arrowprops=arrowprops)
 
 
