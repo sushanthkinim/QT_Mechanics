@@ -10,8 +10,8 @@ import Meas_Function
 
 
 today = date.today()
-chipname = "testcipname"#"DL_v2_C5"
-sample = "testsample3"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
+chipname = "DLv2_c38"#"DL_v2_C5"
+sample = "9_5_1"#"Circ_Matrix_2x4_Dev_1x3_1580nm"
 
 current_dir = "E:\Measurement\Double_Layer_Devices"
 data_path = str(today) + '-' + chipname + '-' + sample + '-' + 'Data'
@@ -19,17 +19,17 @@ data_path = str(today) + '-' + chipname + '-' + sample + '-' + 'Data'
 os.chdir(current_dir)
 os.mkdir(data_path)
 # -----------------Geometry of the device-----------------------
-L_pad = 90E6
-W_pad = 90E6
-Vertical_step = 2E6
-Horz_step = 2E6
+L_pad = 80E6
+W_pad = 80E6
+Vertical_step = 1.5E6
+Horz_step = 1.5E6
 H_steps = int(W_pad/Horz_step)
 V_steps = int(L_pad/Vertical_step)
 
 # --------------- Measurement parameters -----------------------
 
-startFreq = 180E+3
-stopFreq = 1E+6
+startFreq = 100E+3#180
+stopFreq = 3E+6#1
 calibration_peak = 200E+3
 bW_Res = 50
 coupling = 'DC'
@@ -109,7 +109,8 @@ for i in peaks_list_num:
     val_old = float(i)
 
 fig = Meas_Function.plot_the_NPS([trace1_list_num, trace2_list_num, trace3_list_num],
-                                 startFreq, stopFreq, penultimate_peak_list)
+                                 startFreq, stopFreq, penultimate_peak_list, 
+                                 savedir=current_dir+data_path)
 
 plt.show(block=False)
 plt.pause(1)

@@ -496,7 +496,7 @@ def frequency_chooser(freqs):
     return filtered_freqs
 
 
-def plot_the_NPS(traces, startFreq, stopFreq, final_list):
+def plot_the_NPS(traces, startFreq, stopFreq, final_list, savedir):
     n = len(traces[0])
     xaxis = np.linspace(startFreq, stopFreq, n)
 
@@ -516,7 +516,9 @@ def plot_the_NPS(traces, startFreq, stopFreq, final_list):
                 rotation=0, va='bottom', ha='center', annotation_clip=False, arrowprops=arrowprops)
 
 
-    plt.savefig('NPS_ThreePoints.pdf', format='pdf', dpi=300)
+    if savedir[-1] != "/":
+        savedir += "/"
+    plt.savefig(savedir + 'NPS_ThreePoints.pdf', format='pdf', dpi=300)
 
     return fig
 
