@@ -272,7 +272,7 @@ class measurement:
     def find_NPS_and_Peaks(startFreq, stopFreq, bW_Res, coupling, sweeppoints, sm_lor_span, sm_bw_in):
         try:
             # Initialise the spectrum analyser
-            measurement.initialise_SA(startFreq, stopFreq, sm_bw_in, coupling, sweeppoints)
+            measurement.initialise_SA(startFreq, stopFreq, bW_Res, coupling, sweeppoints)
             # Get trace
             trace = measurement.save_trace(1)
             # Save Trace Data
@@ -450,6 +450,300 @@ class measurement:
         except Exception as e:
             print(e)
 
+    def lorentzian_fit_QFactor(Lorentzian_span, peak_in, BW_res_Lorentzian,sweeppoints):
+        try:
+            averaging = 1
+            time.sleep(1)
+            for avg_time in [averaging]:
+                trace = []
+                trace_array = []
+                data_watts = []
+                y0 = []
+                popt = []
+                pcov =[]
+
+                peak_UT = float(peak_in)
+                SpectrumAnalyzer = resourceManager.open_resource(VISA_ADDRESS_SA)
+                SpectrumAnalyzer.write(":SENSe:FREQuency:SPAN " + str(Lorentzian_span) + "Hz")
+                SpectrumAnalyzer.write(":SENSe:FREQuency:CENTer " + str(peak_UT) + "Hz")
+                SpectrumAnalyzer.write("SENSe:BWIDth:RESolution " + str(BW_res_Lorentzian) + "Hz")
+                time.sleep(1)#1
+                SpectrumAnalyzer.write(":CALCulate:MARKer1:MAX")
+                SpectrumAnalyzer.write(":CALCulate:MARKer1:SET:CENTer")
+                SpectrumAnalyzer.write(":TRAC1:TYPE AVER")
+                time.sleep(20)#5
+                SpectrumAnalyzer.write(":TRAC? TRACE1")
+                trace = SpectrumAnalyzer.read()
+                trace_array = tuple(trace.split(','))
+                y = np.array(trace_array, np.float)
+                Npoints = int(sweeppoints)
+                sum_back = 0
+                k = 0
+                background_pts = int(0.2 * Npoints)
+                peak_window = int(0.1 * Npoints)
+                data_watts = np.power(10, (y - 30) / 10)
+                sum_all = np.sum(data_watts) * BW_res_Lorentzian
+                Q = 0
+                Gamma = 0
+
+                # noise background for the fitting
+                while k < background_pts:
+                    sum_back = sum_back + data_watts[k] + data_watts[Npoints - k - 1]
+                    k = k + 1
+
+                sum_back = sum_back / (2 * background_pts)
+                y0 = np.mean(sum_back)
+                #y0 = np.min(data_watts)
+                xi = []
+                xi = np.argmax(data_watts[int(np.size(data_watts) / 2) - peak_window: int(np.size(data_watts) / 2) + peak_window: 1])
+                xi = peak_UT + (xi - peak_window) / (Npoints / Lorentzian_span)
+                x_fit = []
+                x_fit = np.linspace(peak_UT - Lorentzian_span / 2, peak_UT + Lorentzian_span / 2, Npoints, endpoint=False)
+                #popt = [0, 0]
+                try:
+
+                    def func_lorentzian(x, gam, A):
+                        return y0 + (A / ((np.power(x - xi, 2)) + math.pow(gam, 2)))
+
+                    def func_lorentzian_new(x, gam, A, y0):
+                        return y0 + A * gam**2 / ((x - xi)**2 + gam**2)
+
+                    guess = (1,1,y0)
+                    if np.max(data_watts[int(np.size(data_watts) / 2) - peak_window: int(np.size(data_watts) / 2) + peak_window: 1]) / sum_back > 5:
+                        popt, pcov = curve_fit(func_lorentzian_new, x_fit, data_watts,guess)
+                        Gamma = abs(2 * math.pi * popt[0])
+                        Q = 2 * math.pi * peak_UT * (1.0 / (2 * math.pi * abs(popt[0])))
+                        #I = math.pi * popt[1] / popt[0]
+                        #I_err = I * np.sqrt((pcov[0, 0] / popt[0] ** 2) + (pcov[1, 1] / popt[1] ** 2))
+                    else:
+                        continue
+                except RuntimeError:
+                    I = 1e-13
+                    I_err = 1e-13
+
+                y_fit = np.array(func_lorentzian_new(x_fit, abs(popt[0]),popt[1], popt[2]))
+                y_back = np.full((1,len(x_fit)),popt[2])
+                plt.semilogy(x_fit, y_fit, 'b', label='Q = ' + str(int(Q)) ,linewidth=2.0)
+                plt.semilogy(x_fit, data_watts, 'r', Linewidth=0.5)
+                #plt.semilogy([x_fit[0], x_fit[-1]], [y_back[0], y_back[-1]], 'g-', Linewidth=0.5)
+                plt.hlines(popt[2],x_fit[0],x_fit[-1],linestyles='dashed',colors='g')
+                plt.xlabel('Freq [Hz]')
+                plt.ylabel('log(Power) [a.u.]')
+                plt.legend()
+                plt.savefig('Q_fit ' + str(float(peak_in)) + '.pdf')
+                plt.close()
+                #print(*popt)
+            return [Q, Gamma, trace]
+            #return fig
+        except Exception as e:
+                    print(e)
+
+    def ringdown_Qfactor(peak_UT,Npoints):
+
+        try:
+            peak_in = float(peak_UT)
+            BW = 1000
+            sweep_time = 2
+            peak_peak_voltage = 0.0025
+            SpectrumAnalyzer = resourceManager.open_resource(VISA_ADDRESS_SA)
+            SignalGenerator = resourceManager.open_resource(VISA_ADDRESS_SG)
+
+            SignalGenerator.write(":SOURce1:VOLTage " + str(peak_peak_voltage))
+            SignalGenerator.write(":SOURce1:FREQuency " + str(int(peak_in)))
+            SignalGenerator.write("OUTPut1 1")
+
+            #Set zero-span in spectrum analyzer
+            SpectrumAnalyzer.write("SENSe:BWIDth:RESolution " + str(BW) + "Hz")
+            SpectrumAnalyzer.write(":SENSe:FREQuency:SPAN 0")
+            SpectrumAnalyzer.write(":SENSe:SWEep:TIME " + str(sweep_time))
+            SpectrumAnalyzer.write(":SENSe:FREQuency:CENT " + str(peak_in) + "Hz")
+            SpectrumAnalyzer.write(":SENSe:SWEep:TIME " + str(0.01))
+            SpectrumAnalyzer.write(":TRAC1:TYPE WRIT")
+            time.sleep(1)
+
+            peak_shift = 0
+            peak_shift_prev = 0
+            multiply_V = 2
+            timestep = 0.2
+            search_window = 100 * math.ceil(peak_in / 50000)
+            abs_diff = 0
+            abs_diff_prev = abs_diff - 10
+            flag = 0
+
+            while (abs_diff < 15 or (abs_diff - abs_diff_prev > 3 and abs_diff < 20) or (
+                    math.fabs(peak_shift - peak_shift_prev) > 2)) and flag == 0 and abs_diff < 20:
+                SignalGenerator.write(":SOURce1:VOLTage " + str(peak_peak_voltage))
+                time.sleep(1)
+                peak_pow = np.empty(shape=[search_window, 1])
+
+                j = 0
+                while j < search_window:
+                    SignalGenerator.write(":SOURce1:FREQuency " + str(int(peak_in + j - search_window / 2.0)))
+                    if j == 0:
+                        time.sleep(3)
+                    time.sleep(timestep)
+                    SpectrumAnalyzer.write("CALC:MARK1:Y?")
+                    peak_pow[j] = SpectrumAnalyzer.read()
+                    # print(peak_pow2[j])
+                    j = j + 1
+                    #print(j)
+                peak_shift_prev = peak_shift
+                peak_shift = np.argmax(peak_pow) - int(search_window / 2)
+                abs_diff_prev = abs_diff
+                abs_diff = np.max(peak_pow) - (np.average(peak_pow[0:int(search_window / 10):1]) + np.average(
+                    peak_pow[search_window - int(search_window / 10): search_window:1])) / 2.0
+
+                peak_peak_voltage = peak_peak_voltage * multiply_V
+
+                if peak_peak_voltage > 5.5:
+                    flag = 1
+
+            if flag == 0:
+                corrected_peak = int(peak_in) + peak_shift
+                print("corrected_peaks: " + str(corrected_peak))
+            else:
+                corrected_peak = int(peak_in)
+            time.sleep(1)
+
+            window = np.linspace(0, search_window - 1, search_window)
+            plt.plot(window, peak_pow, 'r-o', label='Forward Sweep')
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('log(Power) [a.u.]')
+            plt.legend()
+            plt.savefig('ShiftSweep_' + str(peak_in) + '.pdf')
+            plt.close()
+
+            #Start Burst mode
+            Gen_peak = corrected_peak
+            SignalGenerator.write(":SOURce1:FREQuency " + str(Gen_peak))
+            time.sleep(2)
+            Ncycles_array = [10, 15, 20]
+            index = 0
+            Q_RD = []
+
+            if flag == 0:
+                for l in Ncycles_array:
+                    # calculate background noise level
+                    index = index + 1
+                    BURST_V = 5
+                    PER = 2
+                    Ncycles = l + 5 + l * (peak_peak_voltage / 2) / 0.005
+                    SpectrumAnalyzer.write(":TRIG:SOUR IMM")
+                    SignalGenerator.write('BURST OFF')
+                    SignalGenerator.write("OUTPut1 0")
+                    SpectrumAnalyzer.write(":TRAC1:TYPE WRIT")
+                    SpectrumAnalyzer.write(":TRAC1:TYPE AVER")
+                    time.sleep(5)
+                    SpectrumAnalyzer.write(":TRAC? TRACE1")
+                    backgnd_temp = SpectrumAnalyzer.read()
+                    backgnd_temp = tuple(backgnd_temp.split(','))
+                    backgnd_array = np.array(backgnd_temp, np.float)
+                    avg_noise = np.average(backgnd_array)
+                    # start Burst
+                    SignalGenerator.write("OUTPut1 1")
+                    SignalGenerator.write(":SOURce1:BURSt:STATe ON")
+                    SignalGenerator.write(":SOURce1:VOLTage " + str(BURST_V))
+                    SignalGenerator.write(":SOURce1:BURSt:NCYCLes " + str(Ncycles))
+                    SignalGenerator.write(":SOURce1:BURSt:INT:PER " + str(PER / 2))
+                    SpectrumAnalyzer.write(":SENSe:SWEep:TIME " + str(PER))
+                    SpectrumAnalyzer.write(":TRAC1:TYPE WRIT")
+                    time.sleep(PER * 2)
+                    SpectrumAnalyzer.write(":CALCulate:MARKer1:MAX")
+                    SpectrumAnalyzer.write("CALC:MARK1:Y?")
+                    Y = SpectrumAnalyzer.read()
+                    tri_peak = np.array(Y, np.float)
+                    SpectrumAnalyzer.write(":TRIG:SOUR VID")
+                    SpectrumAnalyzer.write("TRIG:VID:LEV " + str(tri_peak - 3))
+                    time.sleep(PER * 3)
+
+                    reduce_span = int(Npoints / 10)
+                    SpectrumAnalyzer.write(":TRAC? TRACE1")
+                    ringdown_temp = SpectrumAnalyzer.read()
+                    ringdown_temp = tuple(ringdown_temp.split(','))
+                    ringdown_array = np.array(ringdown_temp, np.float)
+                    ringdown_arrayf = ringdown_array[reduce_span:Npoints - reduce_span:1]
+                    start_index = np.argmax(ringdown_arrayf)
+                    peak_index = start_index
+                    end_index = Npoints - reduce_span
+                    delta = np.max(ringdown_arrayf) - avg_noise
+                    print("peak " + str(peak_index))
+                    new_index = int((start_index + end_index) / 2)
+                    delta_2 = ringdown_arrayf[new_index] - avg_noise
+                    upper_limit = delta - 6
+                    lower_limit = delta - 10
+                    count_stuck = 0
+                    while count_stuck < 100 and (delta_2 < lower_limit or delta_2 > upper_limit):
+                        if delta_2 < lower_limit:
+                            end_index = new_index
+                            new_index = int((start_index + new_index) / 2)
+                        else:
+                            start_index = new_index
+                            new_index = int((end_index + new_index) / 2)
+                        delta_2 = ringdown_arrayf[new_index] - avg_noise
+                        count_stuck = count_stuck + 1
+                        #print("delta2 " + str(delta_2))
+                        #print("index" + str(new_index))
+
+                    slope = -(delta - delta_2) / (peak_index - new_index)
+                    x_width = delta / slope
+                    #print("x_wid" + str(x_width))
+                    PER = round(x_width * 4 * PER / Npoints, 1)
+                    #print("PER " + str(PER))
+                    #file_log.write('period: ' + str(PER) + '\n')
+                    SignalGenerator.write(":SOURce1:BURSt:INT:PER " + str(PER / 2))
+                    SpectrumAnalyzer.write(":SENSe:SWEep:TIME " + str(PER))
+                    SpectrumAnalyzer.write(":TRAC1:TYPE AVER")
+                    time.sleep(PER * 5)
+
+                    SpectrumAnalyzer.write(":TRAC? TRACE1")
+                    ringdown_temp = SpectrumAnalyzer.read()
+                    ringdown_temp1 = tuple(ringdown_temp.split(','))
+                    ringdown_array = np.array(ringdown_temp1, np.float)
+                    data = ringdown_array[reduce_span:Npoints - reduce_span:1]
+
+                    # passdataQ = open(chipname + '_' + sample + '_Qfactor_' + str(peak_in) + '_' + str(Ncycles) + '.csv',
+                    #                  'w')
+                    # passdataQ.write(ringdown_temp)
+                    # passdataQ.close()
+
+                    # start fitting ringdown
+                    x = np.linspace(0, PER, Npoints - reduce_span * 2)
+                    data_watts = np.power(10, (data - 30) / 10)
+                    data_in = np.log(data_watts)
+                    x_fit = x[np.argmax(data) + int(Npoints / 40): np.argmax(data) + int(Npoints / 10): 1]
+                    data_fit = data_in[np.argmax(data) + int(Npoints / 40): np.argmax(data) + int(Npoints / 10): 1]
+
+                    def func(x, y0, m, x0):
+                        return y0 - m * (x - x0)
+
+                    popt, pcov = curve_fit(func, x_fit, data_fit)
+                    Q = int(2 * math.pi * int(peak_in) * (1.0 / popt[1]))
+
+                    #file_log.write('Q_ring: ' + str(Q) + '\n')
+                    #file2.write(str(Q) + '\t')
+                    plt.plot(x_fit, func(x_fit, *popt), 'r--', label='Q = ' + str(Q), linewidth=3.0)
+                    plt.plot(x, data_in, 'b')
+                    plt.xlabel('time [s]')
+                    plt.ylabel('Power')
+                    plt.legend()
+                    plt.savefig('Ringdown with ' + str(Ncycles) + ' cycles Freq -' + str(peak_in) + '.pdf')
+                    Q_RD.append(Q)
+                    plt.close()
+                    SpectrumAnalyzer.write(":TRIG:SOUR IMM")
+                    SignalGenerator.write('BURST OFF')
+                    SpectrumAnalyzer.write(":TRAC1:TYPE WRIT")
+                    SignalGenerator.write("OUTPut1 0")
+
+                return Q_RD, x_fit.tolist(), data_fit.tolist(), data_in.tolist()
+
+            if flag == 1:
+                Q_RD = [1,1,1]
+                return Q_RD, 1, 1, 1
+                    # plt.show()
+                    #plt.close()
+        except Exception as e:
+            print(e)
+
 
 # Graphical point picker, picks three points
 def get_points(xmin, xmax, ymin, ymax, showGuide=True):
@@ -496,7 +790,7 @@ def frequency_chooser(freqs):
     return filtered_freqs
 
 
-def plot_the_NPS(traces, startFreq, stopFreq, final_list, savedir):
+def plot_the_NPS(traces, startFreq, stopFreq, final_list):
     n = len(traces[0])
     xaxis = np.linspace(startFreq, stopFreq, n)
 
@@ -516,9 +810,9 @@ def plot_the_NPS(traces, startFreq, stopFreq, final_list, savedir):
                 rotation=0, va='bottom', ha='center', annotation_clip=False, arrowprops=arrowprops)
 
 
-    if savedir[-1] != "/":
-        savedir += "/"
-    plt.savefig(savedir + 'NPS_ThreePoints.pdf', format='pdf', dpi=300)
+    #if savedir[-1] != "/":
+     #   savedir += "/"
+    plt.savefig('NPS.pdf', format='pdf', dpi=300)
 
     return fig
 
